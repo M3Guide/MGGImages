@@ -1,0 +1,47 @@
+name: Sync Mutant Images
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force re-download every image, even ones already saved'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run sync script
+        env:
+          FORCE_REDOWNLOAD: ${{ inputs.force }}
+        run: python scripts/sync_images.py
+
+      - name: Commit and push new images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add icons larva
+          if git diff --staged --quiet; then
+            echo "No new images to commit."
+          else
+            git commit -m "Auto-sync images ($(date -u +'%Y-%m-%d'))"
+            git push
+          fi
